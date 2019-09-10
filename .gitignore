@@ -1,5 +1,4 @@
-/coverage
-/lib
-/node_modules
-/package.json
-/test
+node_modules
+.ts.flag
+.idea
+.DS_Store

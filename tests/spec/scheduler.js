@@ -1,17 +1,22 @@
 describe("Scheduler", function() {
 	beforeEach(function() {
-		this.addMatchers({
-			toSchedule: function(expected) {
-				this.message = function() {
-					var notText = this.isNot ? " not" : "";
-					var actual = this.actual.map(JSON.stringify);
+		jasmine.addMatchers({
+			toSchedule: function(util, customEqualityTesters) {
+				var compare = function(actual, expected) {
+					actual = actual.map(JSON.stringify);
 					expected = expected.map(JSON.stringify);
-					return "Expected " + actual + notText + " to be scheduled as " + expected;
+
+					var pass = true;
+					for (var i=0;i<Math.max(expected.length, actual.length);i++) {
+						if (actual[i] !== expected[i]) { pass = false; }
+					}
+
+					var notText = pass ? " not" : "";
+					var message = "Expected " + actual + notText + " to be scheduled as " + expected;
+
+					return { pass: pass, message: message };
 				}
-				for (var i=0;i<Math.max(expected.length, this.actual.length);i++) {
-					if (this.actual[i] !== expected[i]) { return false; }
-				}
-				return true;
+				return { compare: compare };
 			}
 		});
 	});
@@ -89,6 +94,23 @@ describe("Scheduler", function() {
 			for (var i=0;i<7;i++) { result.push(S.next()); }
 			expect(result).toSchedule([A200, A100a, A200, A200, A50, A100a, A200]);
 		});
+
+		it("should schedule with initial offsets", function() {
+			S.add(A50, true, 1/300);
+			S.add(A100a, true, 0);
+			S.add(A200, true);
+			var result = [];
+			for (var i=0;i<9;i++) { result.push(S.next()); }
+			expect(result).toSchedule([A100a, A50, A200, A100a, A200, A200, A100a, A200, A50]);
+		});
+
+		it("should look up the time of an event", function() {
+			S.add(A100a, true);
+			S.add(A50, true, 1/200);
+			expect(S.getTimeOf(A50)).toEqual(1/200);
+			expect(S.getTimeOf(A100a)).toEqual(1/100);
+		});
+
 	});
 
 	describe("Action", function() {
@@ -139,5 +161,20 @@ describe("Scheduler", function() {
 
 			expect(result).toSchedule([A1, A2, A3, A3, A2, A1]);
 		});
+	});
+
+	describe("Zero-ID actor", function() {
+		let schedulers = [ROT.Scheduler.Simple, ROT.Scheduler.Action];
+		schedulers.forEach((schedulerCtor, i) => describe(`scheduler ${i}`, function() {
+			let s = new schedulerCtor();
+			var A1 = 0;
+
+			it("should schedule the zero-id actor", function() {
+				s.add(A1, true);
+				var result = [];
+				for (var i=0;i<6;i++) { result.push(s.next()); }
+				expect(result).toSchedule([A1, A1, A1, A1, A1, A1]);
+			});
+		}));
 	});
 });
